@@ -1,25 +1,131 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Phone, Delete, X, Shield, Cpu, Database, MessageSquare, AppWindow } from 'lucide-react';
+import { Phone, Delete, X, Shield, Cpu, Database, MessageSquare, AppWindow, Wifi, Bluetooth, Radio } from 'lucide-react';
 
 type CloneState = 'targeting' | 'ready' | 'cloning' | 'completed';
-type TargetType = 'number' | 'model';
+type TargetType = 'number' | 'model' | 'radio';
+type RadioType = 'wifi' | 'bluetooth';
+
+const PacketFlow = ({ type }: { type: TargetType | RadioType }) => {
+  const Icon = type === 'wifi' ? Wifi : type === 'bluetooth' ? Bluetooth : Radio;
+  
+  return (
+    <div className="relative w-full h-24 border border-[#00ff41]/10 bg-black/40 rounded flex items-center justify-between px-8 overflow-hidden">
+      <div className="flex flex-col items-center gap-1 z-10">
+        <div className="w-10 h-10 rounded-full border border-[#00ff41]/30 flex items-center justify-center bg-[#00ff41]/5">
+          <Database className="w-5 h-5 opacity-60" />
+        </div>
+        <span className="text-[8px] opacity-40 uppercase tracking-tighter">Target</span>
+      </div>
+
+      <div className="flex-1 relative h-full flex items-center justify-center">
+        {/* Animated Packets */}
+        {[...Array(8)].map((_, i) => (
+          <motion.div
+            key={i}
+            className="absolute w-1 h-1 bg-[#00ff41] rounded-full shadow-[0_0_8px_#00ff41]"
+            initial={{ x: -100, opacity: 0 }}
+            animate={{ 
+              x: 100, 
+              opacity: [0, 1, 1, 0],
+            }}
+            transition={{
+              duration: 1.5,
+              repeat: Infinity,
+              delay: i * 0.2,
+              ease: "linear"
+            }}
+          />
+        ))}
+        
+        {/* Radio Wave Effect */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
+          {[1, 1.5, 2].map((s, i) => (
+            <motion.div
+              key={i}
+              initial={{ scale: 0.8, opacity: 0.5 }}
+              animate={{ scale: s * 1.5, opacity: 0 }}
+              transition={{ duration: 2, repeat: Infinity, delay: i * 0.6 }}
+              className="absolute w-16 h-16 border border-[#00ff41] rounded-full"
+            />
+          ))}
+        </div>
+        
+        <div className="flex flex-col items-center z-10 bg-black/60 px-3 py-1 rounded-full border border-[#00ff41]/10">
+          <Icon className="w-3 h-3 text-[#00ff41] animate-pulse" />
+          <span className="text-[6px] mt-0.5 opacity-50 uppercase tracking-[0.2em]">{type}</span>
+        </div>
+      </div>
+
+      <div className="flex flex-col items-center gap-1 z-10">
+        <div className="w-10 h-10 rounded-full border border-[#00ff41]/30 flex items-center justify-center bg-[#00ff41]/5">
+          <Shield className="w-5 h-5 text-[#00ff41]" />
+        </div>
+        <span className="text-[8px] opacity-40 uppercase tracking-tighter">Nexus</span>
+      </div>
+    </div>
+  );
+};
 
 export default function NexusCloneSystem() {
   const [state, setState] = useState<CloneState>('targeting');
   const [targetType, setTargetType] = useState<TargetType>('number');
+  const [radioType, setRadioType] = useState<RadioType>('wifi');
   const [targetValue, setTargetValue] = useState('');
   const [dialed, setDialed] = useState('');
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
 
+  const isValidPhone = (phone: string) => {
+    // Basic regex for phone validation: allows +, digits, spaces, (), -
+    // Requires at least 7 digits
+    const digitCount = (phone.match(/\d/g) || []).length;
+    return digitCount >= 7 && /^\+?[\d\s\-\(\)]+$/.test(phone);
+  };
+
+  const formatPhoneNumber = (value: string) => {
+    // Simple auto-formatter for +1 (XXX) XXX-XXXX
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 0) return '';
+    if (digits.length <= 1) return `+${digits}`;
+    if (digits.length <= 4) return `+${digits.slice(0, 1)} (${digits.slice(1)}`;
+    if (digits.length <= 7) return `+${digits.slice(0, 1)} (${digits.slice(1, 4)}) ${digits.slice(4)}`;
+    return `+${digits.slice(0, 1)} (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7, 11)}`;
+  };
+
   const MODELS = [
-    'iPhone 15 Pro Max',
-    'Samsung Galaxy S24 Ultra',
-    'Google Pixel 8 Pro',
-    'OnePlus 12',
-    'Xiaomi 14 Ultra',
-    'Huawei Mate 60 Pro'
+    { name: 'iPhone 15 Pro Max', origin: 'USA' },
+    { name: 'Google Pixel 8 Pro', origin: 'USA' },
+    { name: 'Motorola Edge 50', origin: 'USA' },
+    { name: 'Samsung Galaxy S24', origin: 'S. KOREA' },
+    { name: 'Xiaomi 14 Ultra', origin: 'CHINA' },
+    { name: 'Huawei Mate 60 Pro', origin: 'CHINA' },
+    { name: 'OnePlus 12', origin: 'CHINA' },
+    { name: 'Oppo Find X7', origin: 'CHINA' },
+    { name: 'VSmart Aris Pro', origin: 'VIETNAM' },
+    { name: 'Bphone B86', origin: 'VIETNAM' },
+    { name: 'Sony Xperia 1 VI', origin: 'JAPAN' },
+    { name: 'Sharp Aquos R8', origin: 'JAPAN' },
+    { name: 'ASUS ROG Phone 8', origin: 'TAIWAN' },
+    { name: 'Nothing Phone (2)', origin: 'UK' },
+    { name: 'Nokia G42', origin: 'FINLAND' },
+    { name: 'Fairphone 5', origin: 'NETHERLANDS' }
+  ];
+
+  const WIFI_NETWORKS = [
+    'Starbucks_Guest_WiFi',
+    'Airport_Free_HighSpeed',
+    'Corporate_Secure_Net',
+    'Home_Network_5G',
+    'Public_Library_Access'
+  ];
+
+  const BT_DEVICES = [
+    'Bose QuietComfort 45',
+    'Tesla Model 3 BT',
+    'SmartWatch_X2',
+    'Unknown_Device_88AF',
+    'JBL_Flip_6'
   ];
 
   const KEYPAD = [
@@ -42,8 +148,10 @@ export default function NexusCloneSystem() {
 
   const startCloning = () => {
     setState('cloning');
+    const method = targetType === 'radio' ? radioType.toUpperCase() : targetType.toUpperCase();
     setLogs([
       `Target identified: ${targetValue}`,
+      `Link Protocol: ${method} WAVE`,
       'Initializing secure link...', 
       'Bypassing encryption layers...', 
       'Establishing peer-to-peer tunnel...'
@@ -130,26 +238,37 @@ export default function NexusCloneSystem() {
                 <p className="text-xs opacity-40">Select identification protocol to proceed</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button 
                   onClick={() => setTargetType('number')}
-                  className={`p-6 border transition-all text-left space-y-4 ${targetType === 'number' ? 'border-[#00ff41] bg-[#00ff41]/10 shadow-[0_0_15px_rgba(0,255,65,0.2)]' : 'border-[#00ff41]/20 hover:border-[#00ff41]/50 bg-black/40'}`}
+                  className={`p-4 border transition-all text-left space-y-3 ${targetType === 'number' ? 'border-[#00ff41] bg-[#00ff41]/10 shadow-[0_0_15px_rgba(0,255,65,0.2)]' : 'border-[#00ff41]/20 hover:border-[#00ff41]/50 bg-black/40'}`}
                 >
-                  <Phone className={`w-8 h-8 ${targetType === 'number' ? 'text-[#00ff41]' : 'opacity-40'}`} />
+                  <Phone className={`w-6 h-6 ${targetType === 'number' ? 'text-[#00ff41]' : 'opacity-40'}`} />
                   <div>
-                    <h3 className="font-bold text-sm">PHONE NUMBER</h3>
-                    <p className="text-[10px] opacity-40">Direct cellular link identification</p>
+                    <h3 className="font-bold text-[11px]">PHONE NUMBER</h3>
+                    <p className="text-[9px] opacity-40">Cellular link</p>
                   </div>
                 </button>
 
                 <button 
                   onClick={() => setTargetType('model')}
-                  className={`p-6 border transition-all text-left space-y-4 ${targetType === 'model' ? 'border-[#00ff41] bg-[#00ff41]/10 shadow-[0_0_15px_rgba(0,255,65,0.2)]' : 'border-[#00ff41]/20 hover:border-[#00ff41]/50 bg-black/40'}`}
+                  className={`p-4 border transition-all text-left space-y-3 ${targetType === 'model' ? 'border-[#00ff41] bg-[#00ff41]/10 shadow-[0_0_15px_rgba(0,255,65,0.2)]' : 'border-[#00ff41]/20 hover:border-[#00ff41]/50 bg-black/40'}`}
                 >
-                  <Cpu className={`w-8 h-8 ${targetType === 'model' ? 'text-[#00ff41]' : 'opacity-40'}`} />
+                  <Cpu className={`w-6 h-6 ${targetType === 'model' ? 'text-[#00ff41]' : 'opacity-40'}`} />
                   <div>
-                    <h3 className="font-bold text-sm">DEVICE MODEL</h3>
-                    <p className="text-[10px] opacity-40">Hardware signature matching</p>
+                    <h3 className="font-bold text-[11px]">DEVICE MODEL</h3>
+                    <p className="text-[9px] opacity-40">Hardware signature</p>
+                  </div>
+                </button>
+
+                <button 
+                  onClick={() => setTargetType('radio')}
+                  className={`p-4 border transition-all text-left space-y-3 ${targetType === 'radio' ? 'border-[#00ff41] bg-[#00ff41]/10 shadow-[0_0_15px_rgba(0,255,65,0.2)]' : 'border-[#00ff41]/20 hover:border-[#00ff41]/50 bg-black/40'}`}
+                >
+                  <Radio className={`w-6 h-6 ${targetType === 'radio' ? 'text-[#00ff41]' : 'opacity-40'}`} />
+                  <div>
+                    <h3 className="font-bold text-[11px]">RADIO WAVE</h3>
+                    <p className="text-[9px] opacity-40">WiFi / Bluetooth</p>
                   </div>
                 </button>
               </div>
@@ -157,32 +276,68 @@ export default function NexusCloneSystem() {
               <div className="mt-8">
                 {targetType === 'number' ? (
                   <div className="space-y-4">
-                    <input 
-                      type="tel"
-                      placeholder="+1 (___) ___-____"
-                      className="w-full bg-black/60 border border-[#00ff41]/30 p-4 text-center text-xl tracking-[0.2em] focus:outline-none focus:border-[#00ff41] transition-colors"
-                      onChange={(e) => setTargetValue(e.target.value)}
-                      value={targetValue}
-                    />
+                    <div className="relative">
+                      <input 
+                        type="tel"
+                        placeholder="+1 (___) ___-____"
+                        className={`w-full bg-black/60 border p-4 text-center text-xl tracking-[0.2em] focus:outline-none transition-colors ${targetValue && !isValidPhone(targetValue) ? 'border-red-500 text-red-500' : 'border-[#00ff41]/30 focus:border-[#00ff41]'}`}
+                        onChange={(e) => setTargetValue(formatPhoneNumber(e.target.value))}
+                        value={targetValue}
+                      />
+                      {targetValue && !isValidPhone(targetValue) && (
+                        <p className="text-[10px] text-red-500 mt-2 text-center uppercase tracking-widest animate-pulse">Invalid Protocol Format</p>
+                      )}
+                    </div>
                     <button 
-                      disabled={!targetValue}
+                      disabled={!isValidPhone(targetValue)}
                       onClick={() => setState('ready')}
                       className="w-full py-4 bg-[#00ff41] text-black font-bold uppercase tracking-widest disabled:opacity-30 hover:bg-[#00ff41]/80 transition-colors"
                     >
                       Initialize Link
                     </button>
                   </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-3">
+                ) : targetType === 'model' ? (
+                  <div className="grid grid-cols-2 gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                     {MODELS.map((model) => (
                       <button 
-                        key={model}
-                        onClick={() => selectTarget(model)}
-                        className="p-3 border border-[#00ff41]/20 text-[10px] text-left hover:bg-[#00ff41]/10 hover:border-[#00ff41]/50 transition-all uppercase tracking-tighter"
+                        key={model.name}
+                        onClick={() => selectTarget(model.name)}
+                        className="p-3 border border-[#00ff41]/20 text-[10px] text-left hover:bg-[#00ff41]/10 hover:border-[#00ff41]/50 transition-all uppercase tracking-tighter group flex flex-col justify-between h-16"
                       >
-                        {model}
+                        <span className="font-bold group-hover:text-white">{model.name}</span>
+                        <span className="text-[8px] opacity-30 group-hover:opacity-60 self-end">ORIGIN: {model.origin}</span>
                       </button>
                     ))}
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    <div className="flex gap-4">
+                      <button 
+                        onClick={() => setRadioType('wifi')}
+                        className={`flex-1 p-3 border flex items-center justify-center gap-2 text-[10px] font-bold transition-all ${radioType === 'wifi' ? 'border-[#00ff41] bg-[#00ff41]/10' : 'border-[#00ff41]/20 opacity-40'}`}
+                      >
+                        <Wifi className="w-4 h-4" /> WIFI
+                      </button>
+                      <button 
+                        onClick={() => setRadioType('bluetooth')}
+                        className={`flex-1 p-3 border flex items-center justify-center gap-2 text-[10px] font-bold transition-all ${radioType === 'bluetooth' ? 'border-[#00ff41] bg-[#00ff41]/10' : 'border-[#00ff41]/20 opacity-40'}`}
+                      >
+                        <Bluetooth className="w-4 h-4" /> BLUETOOTH
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                      {(radioType === 'wifi' ? WIFI_NETWORKS : BT_DEVICES).map((item) => (
+                        <button 
+                          key={item}
+                          onClick={() => selectTarget(item)}
+                          className="p-3 border border-[#00ff41]/10 bg-black/40 text-[10px] text-left hover:bg-[#00ff41]/10 hover:border-[#00ff41]/30 transition-all flex justify-between items-center group"
+                        >
+                          <span className="group-hover:text-white">{item}</span>
+                          <span className="text-[8px] opacity-30 uppercase">{radioType === 'wifi' ? 'SSID' : 'MAC_ADDR'}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -190,8 +345,8 @@ export default function NexusCloneSystem() {
           ) : state === 'ready' ? (
             <motion.div 
               key="ready"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, y: 20, scale: 1 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               className="flex flex-col items-center"
             >
@@ -257,6 +412,8 @@ export default function NexusCloneSystem() {
                 />
               </div>
 
+              <PacketFlow type={targetType === 'radio' ? radioType : targetType} />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="border border-[#00ff41]/20 p-6 bg-[#00ff41]/5 rounded-lg">
                   <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
@@ -297,6 +454,7 @@ export default function NexusCloneSystem() {
                         strokeWidth="2"
                         fill="transparent"
                         strokeDasharray="377"
+                        initial={{ strokeDashoffset: 377 }}
                         animate={{ strokeDashoffset: 377 - (377 * progress) / 100 }}
                         className="text-[#00ff41]"
                       />
@@ -376,16 +534,14 @@ export default function NexusCloneSystem() {
                     ].map((app, i) => (
                       <div 
                         key={i} 
-                        className="flex items-center justify-between p-3 border border-[#00ff41]/10 bg-black/40 rounded hover:bg-[#00ff41]/5 hover:border-[#00ff41]/30 transition-all group cursor-default"
+                        className="p-3 border border-[#00ff41]/10 bg-black/40 rounded hover:bg-[#00ff41]/5 hover:border-[#00ff41]/30 transition-all group cursor-default"
                       >
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 mb-1">
                           <div className="w-1.5 h-1.5 rounded-full bg-[#00ff41] shadow-[0_0_8px_#00ff41]" />
-                          <div>
-                            <p className="text-[11px] font-bold text-white group-hover:text-[#00ff41] transition-colors">{app.name}</p>
-                            <p className="text-[9px] opacity-40 uppercase tracking-tighter">{app.version}</p>
-                          </div>
+                          <p className="text-[11px] font-bold text-white group-hover:text-[#00ff41] transition-colors">{app.name}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="flex items-center justify-between pl-[1.125rem]">
+                          <p className="text-[9px] opacity-40 uppercase tracking-tighter">{app.version}</p>
                           <span className="text-[8px] px-1.5 py-0.5 border border-[#00ff41]/20 rounded text-[#00ff41] opacity-60 group-hover:opacity-100 transition-opacity">
                             {app.status}
                           </span>
